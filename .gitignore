@@ -1,0 +1,4 @@
+__pycache__/
+geodesics/__pycache__/
+*.pyc
+test.png

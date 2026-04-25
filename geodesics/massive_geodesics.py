@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
 
 class massive_geodesics:
     def __init__(self, b, v, M):
@@ -24,7 +22,7 @@ class massive_geodesics:
 
         self.ingoing = True
 
-        self.r = 500
+        self.r = 50
         self.phi = np.pi - np.arcsin(b / self.r)
 
         self.r_critical = self._critical_radius(M)
@@ -56,8 +54,10 @@ class massive_geodesics:
     def arrive_critical(self):
         return abs(self.r - self.r_critical) > 1e-4
     
-    def _run_trajectory(self, step = 0.01):
-        while self.r <= 500:
+    def _run_trajectory(self, step = 0.01, max_step = 100000):
+        total_step = 0
+
+        while (self.r <= 50) and (total_step < max_step) and (self.r >= 2 * self.central_mass):
             dr = np.sqrt(self.E ** 2 - (1 - 2 * self.central_mass / self.r) * (1 + self.L ** 2 / self.r ** 2)) * step
 
             dphi = self.L / self.r ** 2 * step
@@ -78,20 +78,4 @@ class massive_geodesics:
             self.x_positions.append(x)
             self.y_positions.append(y)
 
-# you can uncomment the following lines to test if everything works good
-
-# fig, ax = plt.subplots(figsize = (6, 6))
-
-# ax.set_xlim(-10, 10)
-# ax.set_ylim(-10, 10)
-
-# M = 1
-# r = 2 * M
-# circle = Circle((0, 0), r, color = "black")
-
-# test = massive_geodesics(7, 0.9, M)
-
-# ax.add_patch(circle)
-# ax.plot(test.x_positions, test.y_positions)
-
-# plt.savefig("test.png")
+            total_step += 1
