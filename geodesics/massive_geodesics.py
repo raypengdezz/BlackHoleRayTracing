@@ -1,7 +1,7 @@
 import numpy as np
 
 class massive_geodesics:
-    def __init__(self, b, v, M):
+    def __init__(self, b, v, M, step=0.1, max_step=200000):
         """
         b : impact parameter
         v : velocity (when c=1)
@@ -30,7 +30,7 @@ class massive_geodesics:
         self.x_positions = [] 
         self.y_positions = []
 
-        self._run_trajectory()
+        self._run_trajectory(step=step, max_step=max_step)
 
     def get_cartesian(self):
         x = self.r * np.cos(self.phi)

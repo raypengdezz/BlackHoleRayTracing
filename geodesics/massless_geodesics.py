@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
 class massless_geodesics:
-    def __init__(self, b, M):
+    def __init__(self, b, M, step=0.01, max_step=200000):
         """
         b : impact parameter
         v : velocity (when c=1)
@@ -28,7 +28,7 @@ class massless_geodesics:
         self.x_positions = [] 
         self.y_positions = []
 
-        self._run_trajectory()
+        self._run_trajectory(step=step, max_step=max_step)
 
     def get_cartesian(self):
         x = self.r * np.cos(self.phi)

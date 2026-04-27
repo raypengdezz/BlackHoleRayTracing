@@ -201,5 +201,6 @@ v_slider.on_changed(update_selected)
 m_slider.on_changed(redraw)
 add_button.on_clicked(add_trajectory)
 
+
 redraw()
 plt.show()
