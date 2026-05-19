@@ -7,12 +7,12 @@ from geodesics.massless_geodesics import massless_geodesics
 
 
 # color
-FIGURE_BG = "#0B1020"
+FIGURE_BG = "#0D1223"
 PANEL_BG = "#121A2B"
-AXIS_BG = "#09111E"
+AXIS_BG = "#0D1625"
 TEXT_COLOR = "#E8EEF9"
 MUTED_TEXT = "#9FB3C8"
-GRID_COLOR = "#2A3B5B"
+GRID_COLOR = "#444B58"
 SLIDER_TRACK = "#1A2740"
 SLIDER_ACTIVE = "#F4A261"
 BUTTON_BG = "#1D2A44"
@@ -32,15 +32,15 @@ LINE_COLORS = [
 INITIAL_M = 1.0
 PLOT_LIMIT = 30
 GEODESIC_STEP = 0.1
-GEODESIC_MAX_STEP = 50000
+GEODESIC_MAX_STEP = 500000
 
 # alpha, beta 單位是 degree。
 # b, v, M 決定原本平面上的 geodesic。
 # alpha 是入射方向在 x-y 平面的方位角。
 # beta 是入射方向相對 x-y 平面的仰角。
 trajectories = [
-    {"b": 1.0, "v": 0.9, "alpha": 0.0, "beta": 0.0},
-    {"b": 5.0, "v": 0.8, "alpha": 35.0, "beta": 25.0},
+    {"b": 5.8, "v": 0.9, "alpha": 0.0, "beta": 0.0},
+    {"b": 5.0, "v": 0.8, "alpha": 75.0, "beta": 0.0},
 ]
 
 selected_index = 0
@@ -49,9 +49,11 @@ selector = None
 selector_ax = None
 mode_selector = None
 mode_selector_ax = None
+orientation_ax = None
 syncing_sliders = False
 
 
+# 讓 3D 圖的三個座標軸使用相同比例。
 def set_axes_equal(ax):
     # 讓 x, y, z 三個方向的比例相同，黑洞球體才不會被拉長。
     x_limits = ax.get_xlim3d()
@@ -66,12 +68,14 @@ def set_axes_equal(ax):
     x_middle = np.mean(x_limits)
     y_middle = np.mean(y_limits)
     z_middle = np.mean(z_limits)
-
+    
+    # 座標軸大小 
     ax.set_xlim3d(x_middle - max_range, x_middle + max_range)
     ax.set_ylim3d(y_middle - max_range, y_middle + max_range)
     ax.set_zlim3d(z_middle - max_range, z_middle + max_range)
 
 
+# 根據 alpha / beta 建立入射方向與側向偏移方向。
 def incoming_basis(alpha_deg, beta_deg):
     # incoming_direction 是粒子/光線從遠方射向黑洞時的大方向。
     # side_direction 是 impact parameter 的方向；b < 0 會自動跑到反側。
@@ -91,6 +95,7 @@ def incoming_basis(alpha_deg, beta_deg):
     return incoming_direction, side_direction
 
 
+# 把 2D geodesic 軌跡投影到指定方向的 3D 平面。
 def lift_trajectory_to_3d(x_positions, y_positions, alpha, beta):
     # 原本 coordinate.py 算的是 x-y 平面的軌道，也就是 z = 0。
     # x_positions 是沿著入射方向的座標，y_positions 是 impact parameter 方向。
@@ -102,6 +107,7 @@ def lift_trajectory_to_3d(x_positions, y_positions, alpha, beta):
     return points_3d[:, 0], points_3d[:, 1], points_3d[:, 2]
 
 
+# 畫出目前選中軌道的入射方向箭頭。
 def draw_incoming_direction(alpha, beta):
     # 畫一小段入射方向箭頭，幫助看 alpha / beta 的意義。
     incoming_direction, _side_direction = incoming_basis(alpha, beta)
@@ -121,10 +127,12 @@ def draw_incoming_direction(alpha, beta):
     )
 
 
+# 軌道編號循環取得顏色。
 def get_color(index):
     return LINE_COLORS[index % len(LINE_COLORS)]
 
 
+# 畫出 Schwarzschild 黑洞事件視界球面。
 def draw_black_hole():
     # Schwarzschild event horizon 半徑 r = 2M。
     radius = 2 * m_slider.val
@@ -144,12 +152,25 @@ def draw_black_hole():
     ax.plot_surface(glow_x, glow_y, glow_z, color="#1D2740", edgecolor="none", alpha=0.16)
     return ax.plot_surface(x, y, z, color=HORIZON_FILL, edgecolor="#1F293D", linewidth=0.15, alpha=0.99)
 
+# 設定 3D 座標軸外觀。
+def style_3d_axes():
+    ax.set_axis_on()
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
 
-def hide_3d_axes():
-    # 關掉 3D 座標軸、格線、刻度與 label，只保留黑洞和軌道。
-    ax.set_axis_off()
+    ax.tick_params(colors=MUTED_TEXT, labelsize=8)
+    ax.grid(color=GRID_COLOR, alpha=0.28, linewidth=0.0)
+
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        axis.pane.set_facecolor(AXIS_BG)
+        axis.pane.set_alpha(0.18)
+        axis.pane.set_edgecolor((0, 0, 0, 0))   # 隱藏面板邊框
+        axis.line.set_color((0, 0, 0, 0))       # 隱藏面板邊框
+        axis._axinfo["grid"]["linewidth"] = 0
 
 
+# 重新建立左側軌道選擇器。
 def rebuild_selector():
     global selector, selector_ax
 
@@ -172,6 +193,7 @@ def rebuild_selector():
     selector.on_clicked(select_trajectory)
 
 
+# 建立 massive / massless 模式選擇器。
 def build_mode_selector():
     global mode_selector, mode_selector_ax
 
@@ -190,6 +212,7 @@ def build_mode_selector():
     mode_selector.on_clicked(select_mode)
 
 
+# 將 slider 數值同步成目前選中軌道的參數。
 def sync_sliders_with_selected():
     global syncing_sliders
 
@@ -202,6 +225,7 @@ def sync_sliders_with_selected():
     syncing_sliders = False
 
 
+# 依照目前模式計算 massive 或 massless geodesic。
 def make_trajectory(current, current_m):
     if current_mode == "Massless":
         return massless_geodesics(
@@ -220,6 +244,7 @@ def make_trajectory(current, current_m):
     )
 
 
+# 產生 legend 裡顯示的軌道標籤。
 def trajectory_label(index, current):
     if current_mode == "Massless":
         return (
@@ -233,6 +258,7 @@ def trajectory_label(index, current):
     )
 
 
+# 清空並重畫整張 3D geodesic 圖。
 def redraw(_value=None):
     ax.clear()
     ax.set_facecolor(AXIS_BG)
@@ -277,8 +303,6 @@ def redraw(_value=None):
     ax.set_title(
         (
             f"3D {current_mode} Geodesics | "
-            f"azimuth alpha = {selected['alpha']:.1f} deg, "
-            f"elevation beta = {selected['beta']:.1f} deg"
         ),
         color=TEXT_COLOR,
         fontsize=14,
@@ -289,9 +313,12 @@ def redraw(_value=None):
     ax.set_ylim(-PLOT_LIMIT, PLOT_LIMIT)
     ax.set_zlim(-PLOT_LIMIT, PLOT_LIMIT)
     set_axes_equal(ax)
-    ax.view_init(elev=24, azim=38)
+    ax.view_init(elev=24, azim=38) # 初始角度
     ax.set_box_aspect((1, 1, 1))
-    hide_3d_axes()
+    style_3d_axes()
+    # draw_xyz_reference_axes()
+    if orientation_ax is not None:
+        draw_orientation_axes()
 
     legend = ax.legend(
         loc="upper right",
@@ -306,6 +333,7 @@ def redraw(_value=None):
     fig.canvas.draw_idle()
 
 
+# 切換目前選中的軌道。
 def select_trajectory(label):
     global selected_index
 
@@ -314,6 +342,7 @@ def select_trajectory(label):
     redraw()
 
 
+# 切換 massive / massless 模式。
 def select_mode(label):
     global current_mode
 
@@ -321,6 +350,7 @@ def select_mode(label):
     redraw()
 
 
+# slider 改變時更新目前選中軌道的參數。
 def update_selected(_value):
     if syncing_sliders:
         return
@@ -332,6 +362,7 @@ def update_selected(_value):
     redraw()
 
 
+# 新增一條使用目前 slider 參數的軌道。
 def add_trajectory(_event):
     global selected_index
 
@@ -347,6 +378,7 @@ def add_trajectory(_event):
     redraw()
 
 
+# 刪除目前選中的軌道。
 def delete_trajectory(_event):
     global selected_index
 
@@ -360,10 +392,64 @@ def delete_trajectory(_event):
     redraw()
 
 
+# 畫右下角跟著主視角旋轉的 XYZ 方向指示器。
+def draw_orientation_axes():
+    orientation_ax.clear()
+    orientation_ax.set_facecolor(FIGURE_BG)
+    orientation_ax.set_axis_off()
+    orientation_ax.set_xlim(-1.0, 1.0)
+    orientation_ax.set_ylim(-1.0, 1.0)
+    orientation_ax.set_zlim(-1.0, 1.0)
+    orientation_ax.set_box_aspect((1, 1, 1))
+    orientation_ax.view_init(elev=ax.elev, azim=ax.azim)
+
+    axes = [
+        ("X", "#8A4443", (0.78, 0, 0), (0.95, 0, 0)),
+        ("Y", "#365550", (0, 0.78, 0), (0, 0.95, 0)),
+        ("Z", "#355562", (0, 0, 0.78), (0, 0, 0.95)),
+    ]
+
+    for label, color, direction, label_position in axes:
+        orientation_ax.quiver(
+            0,
+            0,
+            0,
+            direction[0],
+            direction[1],
+            direction[2],
+            color=color,
+            linewidth=1.8,
+            arrow_length_ratio=0.18,
+        )
+        orientation_ax.text(
+            label_position[0],
+            label_position[1],
+            label_position[2],
+            label,
+            color=color,
+            fontsize=10,
+            fontweight="bold",
+            ha="center",
+            va="center",
+        )
+
+
+# 拖曳主圖旋轉時，同步右下角方向指示器。
+def sync_orientation_axes(_event):
+    if orientation_ax is None:
+        return
+    if _event.inaxes is not ax:
+        return
+
+    draw_orientation_axes()
+    fig.canvas.draw_idle()
+
+
 # 建立 3D 畫布與左側控制區。
 fig = plt.figure(figsize=(13, 8))
 fig.patch.set_facecolor(FIGURE_BG)
 ax = fig.add_subplot(111, projection="3d")
+orientation_ax = fig.add_axes((0.84, 0.08, 0.11, 0.11), projection="3d")
 plt.subplots_adjust(left=0.22, bottom=0.10, right=0.98, top=0.92)
 
 build_mode_selector()
@@ -414,6 +500,9 @@ alpha_slider.on_changed(update_selected)
 beta_slider.on_changed(update_selected)
 add_button.on_clicked(add_trajectory)
 delete_button.on_clicked(delete_trajectory)
+fig.canvas.mpl_connect("motion_notify_event", sync_orientation_axes)
+fig.canvas.mpl_connect("button_release_event", sync_orientation_axes)
 
 redraw()
+draw_orientation_axes()
 plt.show()
